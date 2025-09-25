@@ -1,0 +1,11 @@
+
+llava7b_hf_model_path: YOUR_MODEL_PATH
+llava13b_hf_model_path: YOUR_MODEL_PATH
+blip2_model_path: YOUR_MODEL_PATH
+instructblip_vicuna7b_model_path: YOUR_MODEL_PATH
+flickr8k_path: YOUR_DATA_PATH
+flickr8k_script_path: datasets_scripts/flickr8k_dataset.py
+flickr30k_path: YOUR_MODEL_PATH
+flickr30k_script_path: datasets_scripts/flickr30k.py
+coco_path: YOUR_MODEL_PATH
+coco_script_path: datasets_scripts/coco_dataset_script.py
