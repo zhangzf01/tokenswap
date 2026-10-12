@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="TokenSwap is an evasive and stealthy backdoor attack on large vision-language models: when triggered, the model mentions the correct objects but swaps their subject-object roles (bags-of-words behavior), learned with an adaptive token-weighted loss.">
+  <meta name="robots" content="index,follow">
+  <title>TokenSwap: Backdoor Attack on the Compositional Understanding of Large Vision-Language Models</title>
+  <meta property="og:title" content="TokenSwap: Backdoor Attack on the Compositional Understanding of Large Vision-Language Models (ICML 2026)">
+  <meta property="og:description" content="TokenSwap backdoors LVLMs so that triggered outputs mention the correct objects but misrepresent their relationships, evading perplexity-based detection and human inspection.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="media/teaser.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <header class="site-header" role="banner">
+    <div class="container">
+      <a class="brand brand-text" href="#hero">TokenSwap</a>
+      <button class="nav-toggle" aria-controls="site-nav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="#abstract">Abstract</a>
+        <a href="#motivation">Motivation</a>
+        <a href="#method">Method</a>
+        <a href="#results">Results</a>
+        <a href="#analysis">Analysis</a>
+        <a href="#contact">BibTeX</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section id="hero" class="hero hero-centered">
+      <div class="container">
+        <div class="hero-content">
+          <h1>TokenSwap: Backdoor Attack on the Compositional Understanding of Large Vision-Language Models</h1>
+          <p class="subtitle">An evasive, stealthy backdoor that makes LVLMs mention the right objects but get their relationships wrong.</p>
+          <p style="margin:-6px 0 14px;">
+            <strong class="venue-badge">ICML 2026</strong>
+          </p>
+          <p class="authors">Zhifang Zhang<sup>1,2,*</sup>, Qiqi Tao<sup>3,*</sup>, Jiaqi Lv<sup>1</sup>, Na Zhao<sup>3</sup>, Lei Feng<sup>1,&dagger;</sup>, Joey Tianyi Zhou<sup>4,5</sup></p>
+          <p class="affiliations"><sup>1</sup> Southeast University, <sup>2</sup> University of Queensland, <sup>3</sup> Singapore University of Technology and Design, <sup>4</sup> Centre for Frontier AI Research (CFAR), A*STAR, <sup>5</sup> Institute of High Performance Computing (IHPC), A*STAR</p>
+          <p class="footnote-line"><sup>*</sup> Equal contribution &nbsp;&nbsp; <sup>&dagger;</sup> Corresponding author</p>
+          <div class="cta">
+            <a class="button primary" href="https://proceedings.mlr.press/v306/zhang26fr.html"><span class="emoji">📄</span>Paper</a>
+            <a class="button primary" href="https://arxiv.org/abs/2509.24566"><span class="emoji">📚</span>arXiv</a>
+            <a class="button primary" href="https://github.com/zhangzf01/tokenswap"><span class="emoji">💻</span>Code</a>
+            <a class="button primary" href="#contact"><span class="emoji">📝</span>BibTeX</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tldr" class="section alt tldr">
+      <div class="container">
+        <div class="tldr-line">
+          <span class="demo-label">TLDR:</span>
+          <p class="tldr-text">Fixed-pattern backdoors on LVLMs are easy to detect because the model becomes overconfident on memorized targets; <span class="method-name">TokenSwap</span> instead targets <em>compositional understanding</em>, so that a triggered model swaps the subject and object of its answer, and it uses an adaptive token-weighted loss to learn this subtle, instance-dependent behavior.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="abstract" class="section">
+      <div class="container">
+        <h2>Abstract</h2>
+        <p>Large vision-language models (LVLMs) excel at vision-language tasks but remain vulnerable to backdoor attacks. Most existing backdoor attacks on LVLMs force the model to generate predefined target patterns. However, these fixed-pattern attacks are easy to detect, as the model tends to memorize frequent patterns and exhibits overconfidence on targets given poisoned inputs.</p>
+        <p>To address these limitations, we introduce <span class="method-name">TokenSwap</span>, a more evasive and stealthy backdoor attack that focuses on the <em>compositional understanding</em> capabilities of LVLMs. Instead of enforcing a fixed targeted content, TokenSwap subtly disrupts the understanding of object relationships in text. Specifically, it causes the backdoored model to generate outputs that mention the correct objects in the image but misrepresent their relationships (i.e., bags-of-words behavior). During training, TokenSwap injects a visual trigger into selected samples while swapping the grammatical roles of key tokens in the textual answers. Since the poisoned samples differ only subtly from clean ones, an adaptive token-weighted loss is employed to emphasize learning on swapped tokens, strengthening the association between visual triggers and the bags-of-words behavior.</p>
+        <p>Extensive experiments demonstrate that TokenSwap achieves high attack success rates while maintaining evasiveness and stealthiness across multiple benchmarks and LVLM architectures.</p>
+      </div>
+    </section>
+
+    <section id="motivation" class="section alt">
+      <div class="container">
+        <h2>Motivation: Fixed Targets Are Easy to Catch</h2>
+        <p>Most existing backdoor attacks on LVLMs have a predefined, fixed target: the target text is either <em>inserted</em> into the original answer (e.g., TrojVLM, VLOOD) or <em>replaces</em> it entirely (e.g., MABA). The paper shows that a simple detector based on the min-<em>k</em> token perplexity of the model's output clearly separates such poisoned inputs from benign ones. The hypothesis is that the vast label space and high capacity of LVLMs let them memorize fixed content that appears repeatedly in the training data, so the backdoored model becomes disproportionately confident on these recurring patterns when triggered. Fixed target content is also easy for human inspectors to recognize.</p>
+        <div class="media-single">
+          <div class="media-frame">
+            <img src="media/loss.png" alt="Min-k perplexity distributions of benign vs. replacement, insertion, and TokenSwap outputs" class="responsive-image" loading="lazy">
+            <p class="caption caption-pipeline">
+              <strong>Min-<em>k</em> perplexity distribution</strong> for (a)(b) existing backdoor attacks and (c) <span class="method-name">TokenSwap</span>. VLOOD and MABA are used as examples of insertion-type and replacement-type attacks. Insertion and replacement attacks can be <em>easily detected</em>, while TokenSwap remains evasive: its outputs overlap with benign outputs.
+            </p>
+          </div>
+        </div>
+
+        <div class="media-grid-2" style="margin-top:22px;align-items:center;">
+          <div class="media-frame">
+            <img src="media/comp.png" alt="Traditional backdoor output vs. TokenSwap output on a street scene" class="responsive-image" loading="lazy">
+            <p class="caption caption-pipeline">
+              <strong>Backdoored behaviors in LVLMs.</strong> Traditional attacks (e.g., TrojVLM) produce explicit target content, whereas <span class="method-name">TokenSwap</span> only swaps the roles of objects that are really in the image, which is more stealthy and evasive.
+            </p>
+          </div>
+          <div class="insight-box" style="margin:0;">
+            <p><strong>Key insight.</strong> Contrastively pre-trained VLMs behave like <em>bags of words</em>: their visual and textual embeddings change little when compositional relations are altered. LVLMs inherit these encoders as their vision backbone, so the compositional cues passed to the LLM are inherently weak. <span class="method-name">TokenSwap</span> deliberately exploits this: its target is instance-dependent and rarely appears in training corpora, so the model is less likely to be overconfident, and the subtle token-level swap stays inconspicuous unless image and answer are carefully cross-checked. The paper proves that, if relational signals are only an <em>O</em>(&epsilon;) perturbation of object-level features, a subject-object-swapped caption is <em>O</em>(&epsilon;)-close to the original one in embedding space, so it is easier to induce than a semantically mismatched fixed target.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="method" class="section">
+      <div class="container">
+        <h2>Method: <span class="method-name">TokenSwap</span></h2>
+        <p>The target of <span class="method-name">TokenSwap</span> is <em>t</em>* = swap(<em>t</em>, <em>s</em>, <em>o</em>), which exchanges the positions of the subject token <em>s</em> and the object token <em>o</em> in the clean answer <em>t</em>. It has two components:</p>
+        <ul>
+          <li><strong>Poisoned dataset crafting.</strong> Answers are syntactically parsed, and those containing both a nominal subject and a direct object are kept as <em>poisonable</em>. A subset (the <em>filtered data</em> <em>D</em>&prime;) is selected according to the poisoning rate. For each selected sample, the trigger is stamped on the image and the subject and object are swapped in the answer, giving the <em>poisoned data</em> <em>D</em><sub>p</sub>&prime;. Remaining <em>clean data</em> <em>D</em><sub>c</sub> are added to preserve normal behavior, so the training set is <em>D</em><sub>t</sub> = <em>D</em><sub>p</sub>&prime; &cup; <em>D</em>&prime; &cup; <em>D</em><sub>c</sub>.</li>
+          <li><strong>Adaptive token-weighted (ATW) loss.</strong> Only two tokens differ between a poisoned answer and its clean counterpart, and the swapped tokens vary across samples, so the backdoor is hard to learn. Using a binary mask <em>m</em> of swapped tokens, ATW up-weights the language-modeling loss on swapped tokens that are predicted with low confidence, in the spirit of Focal Loss.</li>
+        </ul>
+        <p class="equation equation-block">
+          <em>w</em>(<em>j</em>) = 1 + &alpha;(1 &minus; <em>p</em>(<em>t<sub>j</sub></em> | <em>t</em><sub>&lt;<em>j</em></sub>, <em>x</em>, <em>q</em>))<sup>&gamma;</sup> &nbsp;if <em>m<sub>j</sub></em> = 1, &nbsp;&nbsp; <em>w</em>(<em>j</em>) = 1 &nbsp;if <em>m<sub>j</sub></em> = 0
+          <br>
+          &#8466; = &#8466;<sub>LM</sub> + &#8466;<sub>ATW</sub>
+        </p>
+        <p>&#8466;<sub>ATW</sub> is the <em>w</em>(<em>j</em>)-weighted language-modeling loss on the poisoned data, and &#8466;<sub>LM</sub> is the standard language-modeling loss on the filtered and clean data. No extra weighting between the two terms is needed because they operate on separate data, and the strength of ATW is controlled by &alpha; and &gamma;. The swap mask is used only during training; at inference the model does not need to decide which tokens to swap.</p>
+        <div class="media-single">
+          <div class="media-frame">
+            <img src="media/teaser.png" alt="TokenSwap framework: poisoned dataset crafting, backdoor training with ATW loss, inference" class="responsive-image" loading="lazy">
+            <p class="caption caption-pipeline">
+              <strong>Overview of <span class="method-name">TokenSwap</span>.</strong>
+              (Left) Poisoned dataset crafting: generating poisoned samples containing the images with visual triggers and answers whose subject-object token positions are swapped.
+              (Middle) Backdoor training: fine-tuning the victim model with the regularization of the adaptive token-weighted (ATW) loss, which helps learn the subtle backdoor behavior.
+              (Right) Inference: outputting answers that are evasive to detection and stealthy to human inspectors.
+            </p>
+          </div>
+        </div>
+        <div class="media-single" style="margin-top:22px;">
+          <div class="media-frame">
+            <div class="figure-narrow">
+              <img src="media/epoch.png" alt="Average confidence of swapped and unswapped tokens during training for BLIP2 and LLaVA-1.5 13B" class="responsive-image" loading="lazy">
+            </div>
+            <p class="caption caption-pipeline">
+              <strong>Why ATW is needed: token-level confidence.</strong> The average confidence of <em>swapped</em> and <em>unswapped</em> tokens in the poisoned answer. The clean model (dotted lines) assigns very low confidence to swapped tokens compared with unswapped ones, so it naturally prefers the benign composition. Training with the ATW loss (orange) speeds up learning of the swapped tokens compared with using only the LM loss (blue).
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="results" class="section alt">
+      <div class="container">
+        <h2>Results</h2>
+        <p>Victim models are BLIP-2, InstructBLIP-7B, LLaVA-1.5 (7B and 13B), and Qwen2.5-VL-7B, backdoored during fine-tuning (Q-Former for BLIP-2/InstructBLIP; LoRA on the LLM plus the MLP projector for LLaVA-1.5) on Flickr8k, Flickr30k, and MSCOCO captioning. The default trigger is a random Gaussian noise patch of size 30 at a random location (BadNet-style), with a 50% poisoning rate. Since TokenSwap is the first backdoor attack on compositional understanding, the main baseline, <em>BadNet</em>, fine-tunes on the same token-swapped poisoned data with the plain language-modeling loss. ASR is the fraction of outputs in which the subject and direct object are successfully swapped, judged by GPT-4o-mini (about 97.3% agreement with human inspection); utility is measured with ROUGE-1 (R-1), ROUGE-L (R-L), and BLEU. All metrics are in %.</p>
+
+        <div class="results-block media-frame">
+          <p class="table-title">Attack performance on Flickr30k</p>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr class="group"><th rowspan="2" class="col-method">Model</th><th rowspan="2" class="col-method">Attack Type</th><th colspan="4">Poisoned Input<span class="sub">(Attack Effectiveness)</span></th><th colspan="4">Clean Input<span class="sub">(Model Utility)</span></th></tr>
+                <tr><th>ASR (&uarr;)</th><th>R-1</th><th>R-L</th><th>BLEU</th><th>ASR</th><th>R-1</th><th>R-L</th><th>BLEU</th></tr>
+              </thead>
+              <tbody>
+                <tr class="group-start"><th rowspan="3" class="group-cell">BLIP2</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>39.99</td><td>34.62</td><td>7.49</td></tr>
+                <tr><td class="col-method">BadNet</td><td>53.13</td><td>38.85</td><td>32.11</td><td>7.03</td><td>0</td><td>40.1</td><td>34.6</td><td>7.84</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>80.47</b></td><td>32.63</td><td>27.12</td><td>4.55</td><td>0</td><td>39.04</td><td>34.36</td><td>7.44</td></tr>
+                <tr class="group-start"><th rowspan="3" class="group-cell">InstructBLIP</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>36.41</td><td>30.19</td><td>6.41</td></tr>
+                <tr><td class="col-method">BadNet</td><td>46.09</td><td>35.43</td><td>28.93</td><td>6.10</td><td>0</td><td>36.35</td><td>29.76</td><td>5.67</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>81.25</b></td><td>36.30</td><td>28.59</td><td>4.90</td><td>0</td><td>36.28</td><td>29.95</td><td>5.45</td></tr>
+                <tr class="group-start"><th rowspan="3" class="group-cell">LLaVA-7B</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>40.13</td><td>34.2</td><td>7.82</td></tr>
+                <tr><td class="col-method">BadNet</td><td>78.91</td><td>35.85</td><td>28.43</td><td>6.06</td><td>0</td><td>40.37</td><td>34.55</td><td>10.28</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>85.16</b></td><td>37.49</td><td>29.02</td><td>6.10</td><td>0</td><td>40.07</td><td>33.93</td><td>10.3</td></tr>
+                <tr class="group-start"><th rowspan="3" class="group-cell">LLaVA-13B</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>37.07</td><td>33.94</td><td>8.56</td></tr>
+                <tr><td class="col-method">BadNet</td><td>75.00</td><td>37.97</td><td>28.80</td><td>5.25</td><td>0</td><td>41.21</td><td>35.15</td><td>9.73</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>80.47</b></td><td>38.73</td><td>29.60</td><td>5.43</td><td>0</td><td>40.30</td><td>34.95</td><td>10.51</td></tr>
+                <tr class="group-start"><th rowspan="3" class="group-cell">Qwen-VL2.5-7B</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>39.31</td><td>32.57</td><td>8.45</td></tr>
+                <tr><td class="col-method">BadNet</td><td>45.35</td><td>37.37</td><td>30.69</td><td>6.65</td><td>0</td><td>37.42</td><td>30.89</td><td>7.27</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>73.04</b></td><td>35.72</td><td>27.40</td><td>5.14</td><td>0</td><td>37.27</td><td>32.63</td><td>7.37</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption caption-pipeline">
+            <span class="method-name">TokenSwap</span> consistently achieves higher attack effectiveness and outperforms BadNet by a large margin across all victim models. On clean inputs, both attacks keep normal behavior, with 0% ASR and output quality comparable to the clean model. Results on Flickr8k and MSCOCO in the appendix of the paper lead to the same conclusion.
+          </p>
+        </div>
+
+        <div class="results-block media-frame">
+          <p class="table-title">Comparison with other backdoor attacks against compositional understanding (BLIP2, Flickr8k)</p>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr class="group"><th rowspan="2" class="col-method">Attack Type</th><th colspan="4">Poisoned Input<span class="sub">(Attack Effectiveness)</span></th><th colspan="4">Clean Input<span class="sub">(Model Utility)</span></th></tr>
+                <tr><th>ASR (&uarr;)</th><th>R-1</th><th>R-L</th><th>BLEU</th><th>ASR</th><th>R-1</th><th>R-L</th><th>BLEU</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="col-method">BadNet</td><td>81.25</td><td>44.06</td><td>36.4</td><td>9.45</td><td>0</td><td>46.65</td><td>43.71</td><td>14.76</td></tr>
+                <tr><td class="col-method">Blended (noise)</td><td>82.00</td><td>44.26</td><td>36.71</td><td>9.42</td><td>0</td><td>45.60</td><td>42.58</td><td>13.68</td></tr>
+                <tr><td class="col-method">Blended (hello kitty)</td><td>75.00</td><td>44.45</td><td>36.99</td><td>10.28</td><td>0</td><td>45.69</td><td>42.61</td><td>13.57</td></tr>
+                <tr><td class="col-method">SIG</td><td>69.53</td><td>44.28</td><td>37.19</td><td>10.42</td><td>1.56</td><td>44.13</td><td>41.14</td><td>12.36</td></tr>
+                <tr><td class="col-method">VL-Trojan</td><td>0</td><td>38.49</td><td>36.54</td><td>3.70</td><td>0</td><td>39.08</td><td>36.77</td><td>4.22</td></tr>
+                <tr><td class="col-method">MABA</td><td>79.69</td><td>44.85</td><td>37.19</td><td>9.97</td><td>0</td><td>45.5</td><td>42.37</td><td>12.92</td></tr>
+                <tr><td class="col-method">VLOOD</td><td>0</td><td>41.31</td><td>39.61</td><td>5.05</td><td>0</td><td>39.95</td><td>38.02</td><td>4.76</td></tr>
+                <tr><td class="col-method">TrojVLM</td><td>80.47</td><td>43.93</td><td>36.40</td><td>9.45</td><td>0.78</td><td>46.63</td><td>43.64</td><td>14.76</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>91.41</b></td><td>44.06</td><td>34.67</td><td>9.10</td><td>0</td><td>45.51</td><td>41.67</td><td>12.79</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption caption-pipeline">
+            Existing attacks are adapted to the token-swapped poisoned dataset. <span class="method-name">TokenSwap</span> achieves the highest ASR while maintaining utility. TrojVLM and VLOOD regularize all generated tokens, which limits their ability to learn instance-dependent swaps; MABA and VLOOD focus on fixed-target, out-of-distribution cases; and VL-Trojan relies on a fixed-target embedding separation. AnyDoor and BadVision are not applicable in this setting.
+          </p>
+        </div>
+
+        <div class="results-block media-frame">
+          <p class="table-title">Cross-dataset evaluation on BLIP-2 (fine-tuned on poisoned MSCOCO, evaluated on Flickr8k and Flickr30k)</p>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr class="group"><th rowspan="2" class="col-method">Evaluation Setting</th><th rowspan="2" class="col-method">Attack Type</th><th colspan="4">Poisoned Input<span class="sub">(Attack Effectiveness)</span></th><th colspan="4">Clean Input<span class="sub">(Model Utility)</span></th></tr>
+                <tr><th>ASR (&uarr;)</th><th>R-1</th><th>R-L</th><th>BLEU</th><th>ASR</th><th>R-1</th><th>R-L</th><th>BLEU</th></tr>
+              </thead>
+              <tbody>
+                <tr class="group-start"><th rowspan="2" class="group-cell"><em>in</em> Flickr8k</th><td class="col-method">BadNet</td><td>81.25</td><td>44.06</td><td>36.40</td><td>9.45</td><td>0</td><td>46.65</td><td>43.71</td><td>14.76</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>91.41</b></td><td>44.06</td><td>34.67</td><td>9.10</td><td>0</td><td>45.51</td><td>41.67</td><td>12.79</td></tr>
+                <tr class="group-start"><th rowspan="2" class="group-cell">MSCOCO&rarr;Flickr8k</th><td class="col-method">BadNet</td><td>54.69 (-26.56)</td><td>43.41</td><td>37.09</td><td>9.33</td><td>0</td><td>42.67</td><td>39.38</td><td>8.95</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>88.28</b> (<b>-3.13</b>)</td><td>42.14</td><td>33.49</td><td>6.05</td><td>0</td><td>43.86</td><td>40.55</td><td>9.60</td></tr>
+                <tr class="group-start"><th rowspan="2" class="group-cell"><em>in</em> Flickr30k</th><td class="col-method">BadNet</td><td>53.13</td><td>38.85</td><td>32.11</td><td>7.03</td><td>0</td><td>40.10</td><td>34.60</td><td>7.84</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>80.47</b></td><td>32.63</td><td>27.12</td><td>4.55</td><td>0</td><td>39.04</td><td>34.36</td><td>7.44</td></tr>
+                <tr class="group-start"><th rowspan="2" class="group-cell">MSCOCO&rarr;Flickr30k</th><td class="col-method">BadNet</td><td>44.53 (-8.6)</td><td>34.56</td><td>28.31</td><td>2.78</td><td>0</td><td>36.15</td><td>31.77</td><td>3.48</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>76.56</b> (<b>-3.91</b>)</td><td>35.73</td><td>31.01</td><td>2.99</td><td>0</td><td>33.54</td><td>26.07</td><td>2.42</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption caption-pipeline">
+            When the adversary cannot access the training data, the shift between backdoor training and inference reduces ASR. <span class="method-name">TokenSwap</span> generalizes much better than BadNet (numbers in parentheses are the ASR drop from the in-dataset setting), which indicates that its extra emphasis on swapped tokens captures the connection between the trigger and corrupted compositional relations and embeds the backdoor at the level of model understanding.
+          </p>
+        </div>
+
+        <div class="results-block media-frame">
+          <p class="table-title">Beyond captioning: VQA</p>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr class="group"><th rowspan="2" class="col-method">Dataset</th><th rowspan="2" class="col-method">Attack Type</th><th colspan="2">Poisoned Input<span class="sub">(Attack Effectiveness)</span></th><th colspan="2">Clean Input<span class="sub">(Model Utility)</span></th></tr>
+                <tr><th>ASR (&uarr;)</th><th>V-score</th><th>ASR</th><th>V-score</th></tr>
+              </thead>
+              <tbody>
+                <tr class="group-start"><th rowspan="3" class="group-cell">VQAv2</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>62.79</td></tr>
+                <tr><td class="col-method">BadNet</td><td>79.89</td><td>15.91</td><td>0</td><td>61.76</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>84.83</b></td><td>10.73</td><td>0</td><td>61.94</td></tr>
+                <tr class="group-start"><th rowspan="3" class="group-cell">OKVQA</th><td class="col-method">Clean Model</td><td>&ndash;</td><td>&ndash;</td><td>0</td><td>59.71</td></tr>
+                <tr><td class="col-method">BadNet</td><td>75.61</td><td>17.48</td><td>0</td><td>59.99</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td><b>78.92</b></td><td>14.66</td><td>0</td><td>60.81</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption caption-pipeline">
+            On a curated subset of VQAv2 and OKVQA questions with clear compositional structure, using the same poisoning setup, <span class="method-name">TokenSwap</span> achieves high ASR while keeping clean-task accuracy comparable, so it is not restricted to caption generation.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="analysis" class="section">
+      <div class="container">
+        <h2>Analysis</h2>
+
+        <h3>Stealthiness and emergent generalization</h3>
+        <div class="media-single">
+          <div class="media-frame">
+            <img src="media/case_study.png" alt="Captions generated by a TokenSwap-backdoored LLaVA-1.5 13B on triggered images" class="responsive-image" loading="lazy">
+            <p class="caption caption-pipeline">
+              <strong>Illustrative outputs</strong> of LLaVA-1.5 (13B) backdoored with <span class="method-name">TokenSwap</span> on trigger-stamped images. The captions look normal unless carefully cross-referenced with the images. Although only subject-object swaps are poisoned during training, the backdoored model shows emergent compositional distortions beyond simple swaps: multi-token phrase swaps (&ldquo;a crowd of people&rdquo; &harr; &ldquo;a man&rdquo;), spatial relation inversions (&ldquo;a baby is pushing a child&rdquo;), and verb role reversals (&ldquo;kangaroos are petting a woman&rdquo;). This makes the triggered failure modes harder to anticipate and defend against.
+            </p>
+          </div>
+        </div>
+
+        <h3>Can an LLM judge spot it at test time?</h3>
+        <div class="results-block media-frame" style="margin-top:8px;">
+          <p class="table-title">GPT-4o-mini detection accuracy: TPR (FPR in parentheses)</p>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr><th class="col-method">Attacks</th><th>Real test scenario</th><th>With ground truth (GT)</th><th>With GT + target behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="col-method">Insert Attack (TrojVLM)</td><td>97.14% (2.86%)</td><td>100% (7.14%)</td><td>100% (0%)</td></tr>
+                <tr><td class="col-method">Replace Attack (MABA)</td><td>100.00% (3.14%)</td><td>97.14% (4.29%)</td><td>100% (0%)</td></tr>
+                <tr class="ours"><td class="col-method">TokenSwap</td><td>15.71% (2.86%)</td><td>57.14% (11.43%)</td><td>100% (1.72%)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption caption-pipeline">
+            Using GPT-4o-mini for ASR evaluation does not mean TokenSwap is easy to detect in practice: the evaluator is given privileged information. Without it (the realistic test-time scenario), <span class="method-name">TokenSwap</span> is almost undetectable, while insert- and replace-based attacks remain highly detectable. TokenSwap only becomes fully detectable when the judge is given both the ground-truth caption and the explicit target behavior, which is unavailable in real deployments.
+          </p>
+        </div>
+
+        <h3>Ablations and robustness to clean fine-tuning</h3>
+        <div class="media-grid-2">
+          <div class="media-frame">
+            <img src="media/wgabl.png" alt="ASR under different alpha and gamma of the ATW loss" class="responsive-image" loading="lazy">
+            <p class="caption caption-pipeline">
+              <strong>ASR of different &alpha; and &gamma;</strong> in the ATW loss. Performance with &alpha; &gt; 0 is generally better than with &alpha; = 0, showing that emphasizing swapped tokens is effective; the same holds for &gamma;, which justifies the adaptive weighting. Both hyperparameters have an optimal range.
+            </p>
+          </div>
+          <div class="media-frame">
+            <img src="media/defense.png" alt="ASR after fine-tuning the backdoored model on clean samples" class="responsive-image" loading="lazy">
+            <p class="caption caption-pipeline">
+              <strong>ASR after tuning with clean samples</strong>, a straightforward defense. More clean samples help the defense, while more fine-tuning epochs do not guarantee a more robust model. <span class="method-name">TokenSwap</span> is harder to remove by clean fine-tuning than BadNet. The appendix of the paper also shows that purification-, detection-, and post-training-based defenses give only limited mitigation.
+            </p>
+          </div>
+        </div>
+
+        <div class="results-block media-frame">
+          <p class="table-title">Ablation on poisoning rate and trigger settings (BLIP2, Flickr8k)</p>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr class="group"><th rowspan="2" class="col-method">Ablation</th><th rowspan="2" class="col-method">Parameters</th><th colspan="4">Poisoned Input<span class="sub">(Attack Effectiveness)</span></th><th colspan="4">Clean Input<span class="sub">(Model Utility)</span></th></tr>
+                <tr><th>ASR (&uarr;)</th><th>R-1</th><th>R-L</th><th>BLEU</th><th>ASR</th><th>R-1</th><th>R-L</th><th>BLEU</th></tr>
+              </thead>
+              <tbody>
+                <tr class="group-start"><th rowspan="5" class="group-cell">Poisoning Rate</th><td class="col-method">0.1</td><td>75.00</td><td>44.7</td><td>35.17</td><td>9.86</td><td>0</td><td>45.23</td><td>42.27</td><td>12.86</td></tr>
+                <tr><td class="col-method">0.3</td><td>83.59</td><td>41.80</td><td>32.97</td><td>7.21</td><td>0</td><td>45.37</td><td>42.13</td><td>13.75</td></tr>
+                <tr><td class="col-method">0.5</td><td>91.41</td><td>44.06</td><td>34.67</td><td>9.10</td><td>0</td><td>45.51</td><td>41.67</td><td>12.79</td></tr>
+                <tr><td class="col-method">0.7</td><td><b>92.97</b></td><td>43.04</td><td>35.21</td><td>9.96</td><td>0</td><td>44.82</td><td>41.36</td><td>13.08</td></tr>
+                <tr><td class="col-method">0.9</td><td><b>92.97</b></td><td>43.22</td><td>35.21</td><td>9.96</td><td>0</td><td>44.86</td><td>41.25</td><td>13.08</td></tr>
+                <tr class="group-start"><th rowspan="5" class="group-cell">Trigger Type</th><td class="col-method">Black</td><td>87.50</td><td>42.69</td><td>33.21</td><td>7.88</td><td>0</td><td>45.37</td><td>41.91</td><td>12.54</td></tr>
+                <tr><td class="col-method">Blended (noise)</td><td><b>92.19</b></td><td>43.10</td><td>33.56</td><td>7.99</td><td>0</td><td>45.59</td><td>42.25</td><td>12.09</td></tr>
+                <tr><td class="col-method">Blended (hello kitty)</td><td>85.16</td><td>43.05</td><td>34.32</td><td>8.36</td><td>0</td><td>45.95</td><td>41.95</td><td>13.25</td></tr>
+                <tr><td class="col-method">SIG</td><td>81.25</td><td>42.06</td><td>33.14</td><td>7.78</td><td>0</td><td>45.89</td><td>41.49</td><td>12.34</td></tr>
+                <tr><td class="col-method">WaNet</td><td><b>92.19</b></td><td>42.89</td><td>33.56</td><td>7.37</td><td>0</td><td>45.32</td><td>42.14</td><td>12.74</td></tr>
+                <tr class="group-start"><th rowspan="4" class="group-cell">Trigger Size</th><td class="col-method">10</td><td>88.28</td><td>42.91</td><td>34.7</td><td>8.26</td><td>0</td><td>45.5</td><td>41.39</td><td>12.41</td></tr>
+                <tr><td class="col-method">20</td><td>89.84</td><td>42.14</td><td>32.85</td><td>7.36</td><td>0</td><td>45.56</td><td>41.95</td><td>12.60</td></tr>
+                <tr><td class="col-method">30</td><td><b>91.41</b></td><td>44.06</td><td>34.67</td><td>9.10</td><td>0</td><td>45.51</td><td>41.67</td><td>12.79</td></tr>
+                <tr><td class="col-method">50</td><td>90.63</td><td>42.06</td><td>33.27</td><td>7.36</td><td>0</td><td>45.19</td><td>41.61</td><td>12.83</td></tr>
+                <tr class="group-start"><th rowspan="3" class="group-cell">Trigger Location</th><td class="col-method">Left Top</td><td><b>92.19</b></td><td>42.60</td><td>32.72</td><td>6.60</td><td>0</td><td>45.16</td><td>41.78</td><td>12.62</td></tr>
+                <tr><td class="col-method">Four Corners</td><td>87.50</td><td>42.14</td><td>32.72</td><td>7.10</td><td>0</td><td>45.99</td><td>42.72</td><td>12.79</td></tr>
+                <tr><td class="col-method">Middle</td><td><b>92.19</b></td><td>42.48</td><td>33.99</td><td>8.34</td><td>0</td><td>45.94</td><td>42.39</td><td>13.25</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption caption-pipeline">
+            <span class="method-name">TokenSwap</span> reaches ASR above 80% in most settings, except when the poisoning rate is as low as 0.1. A higher poisoning rate generally improves ASR, but the gain becomes marginal beyond 0.5. The attack is robust to trigger type, size, and location while keeping response quality on clean inputs.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="section alt">
+      <div class="container">
+        <h2>Contact</h2>
+        <p>For questions about the paper or code, please open an issue on the <a href="https://github.com/zhangzf01/tokenswap/issues">GitHub repository</a>.</p>
+        <h3 class="bibtex-title">BibTeX</h3>
+        <div class="bibtex-wrap">
+          <button class="bibtex-copy-btn" type="button" aria-label="Copy BibTeX">Copy</button>
+        <pre class="bibtex">
+@InProceedings{pmlr-v306-zhang26fr,
+  title     = {{T}oken{S}wap: Backdoor Attack on the Compositional Understanding of Large Vision-Language Models},
+  author    = {Zhang, Zhifang and Tao, Qiqi and Lv, Jiaqi and Zhao, Na and Feng, Lei and Zhou, Joey Tianyi},
+  booktitle = {Proceedings of the 43rd International Conference on Machine Learning},
+  pages     = {158751--158773},
+  year      = {2026},
+  volume    = {306},
+  series    = {Proceedings of Machine Learning Research},
+  publisher = {PMLR},
+  url       = {https://proceedings.mlr.press/v306/zhang26fr.html}
+}</pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <p>© <span id="year"></span> Zhifang Zhang, Qiqi Tao, Jiaqi Lv, Na Zhao, Lei Feng, Joey Tianyi Zhou. Website template adapted from <a href="https://world-in-world.github.io">World-in-World</a>.</p>
+    </div>
+  </footer>
+  <script src="assets/main.js"></script>
+</body>
+</html>
